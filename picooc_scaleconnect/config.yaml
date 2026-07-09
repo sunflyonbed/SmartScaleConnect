@@ -10,10 +10,13 @@ arch:
 startup: services
 boot: auto
 
-options: {}
+options:
+  sleep: 24h
 
-schema: {}
+schema:
+  sleep: str
 
 map:
-  - type: addon_config
+  - type: homeassistant_config
+    path: /config
     read_only: false
