@@ -13,3 +13,7 @@ boot: auto
 options: {}
 
 schema: {}
+
+map:
+  - type: addon_config
+    read_only: false
