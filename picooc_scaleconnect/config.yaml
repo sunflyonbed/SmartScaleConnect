@@ -1,5 +1,5 @@
 name: Picooc ScaleConnect
-version: "1.0.0"
+version: "1.0.1"
 slug: picooc_scaleconnect
 description: SmartScaleConnect with mainland Picooc support
 
@@ -7,17 +7,14 @@ arch:
   - amd64
   - aarch64
 
-startup: services
-boot: auto
+startup: system
+init: false
 stdin: true
 
 options:
   sleep: 24h
 
 schema:
-  sleep: str
+  sleep: "str"
 
-map:
-  - type: homeassistant_config
-    path: /config
-    read_only: false
+map: [ "config:rw" ]
