@@ -1,0 +1,15 @@
+name: Picooc ScaleConnect
+version: "1.0.0"
+slug: picooc_scaleconnect
+description: SmartScaleConnect with mainland Picooc support
+
+arch:
+  - amd64
+  - aarch64
+
+startup: services
+boot: auto
+
+options: {}
+
+schema: {}
