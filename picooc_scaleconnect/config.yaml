@@ -9,6 +9,7 @@ arch:
 
 startup: services
 boot: auto
+stdin: true
 
 options:
   sleep: 24h
