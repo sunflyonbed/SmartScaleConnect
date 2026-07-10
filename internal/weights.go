@@ -310,6 +310,10 @@ func postLatest(config string, src []*core.Weight) error {
 		}
 
 		fields := strings.Fields(config)
+		if fields[1] == "stdout" {
+			_, err = os.Stdout.Write(append(data, '\n'))
+			return err
+		}
 
 		res, err := http.Post(fields[1], "application/json", bytes.NewBuffer(data))
 		if err != nil {

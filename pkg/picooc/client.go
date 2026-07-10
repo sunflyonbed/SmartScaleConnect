@@ -3,10 +3,13 @@ package picooc
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/AlexxIT/SmartScaleConnect/pkg/core"
@@ -20,6 +23,12 @@ type Client struct {
 	userID   string
 
 	roleIDs map[string]string
+	roles   []roleInfo
+}
+
+type roleInfo struct {
+	ID   string
+	Name string
 }
 
 type bodyRecord struct {
@@ -27,10 +36,10 @@ type bodyRecord struct {
 	BodyFat          float32 `json:"body_fat"`
 	Weight           float32 `json:"weight"`
 	BMI              float32 `json:"bmi"`
-	VisceralFatLevel int     `json:"visceral_fat_level"`
-	BodyAge          int     `json:"body_age"`
+	VisceralFatLevel float32 `json:"visceral_fat_level"`
+	BodyAge          float32 `json:"body_age"`
 	BoneMass         float32 `json:"bone_mass"`
-	BasicMetabolism  int     `json:"basic_metabolism"`
+	BasicMetabolism  float32 `json:"basic_metabolism"`
 	WaterRace        float32 `json:"water_race"`
 	SkeletalMuscle   float32 `json:"skeletal_muscle"`
 	IsDel            int     `json:"is_del"`
@@ -49,17 +58,18 @@ func (c *Client) GetAllWeights() ([]*core.Weight, error) {
 }
 
 func (c *Client) GetFilterWeights(name string) ([]*core.Weight, error) {
-	roleID, ok := c.roleIDs[name]
-	if !ok {
-		return nil, errors.New("picooc: unknown user: " + name)
+	role, err := c.selectRole(name)
+	if err != nil {
+		return nil, err
 	}
+	log.Printf("picooc: use roleid=%s rolename=%s\n", role.ID, role.Name)
 
 	var weights []*core.Weight
 
 	bodyTime := time.Now().Unix()
 
 	for {
-		params := c.loadingBodyDataParams(roleID, bodyTime)
+		params := c.loadingBodyDataParams(role.ID, bodyTime)
 		req, err := http.NewRequest("GET", api+"v1/api/mixData/loadingBodyData?"+params.Encode(), nil)
 		if err != nil {
 			return nil, err
@@ -110,10 +120,10 @@ func (c *Client) GetFilterWeights(name string) ([]*core.Weight, error) {
 				BodyWater: v1.WaterRace,
 				BoneMass:  v1.BoneMass,
 
-				MetabolicAge: v1.BodyAge, // 0
-				VisceralFat:  v1.VisceralFatLevel,
+				MetabolicAge: int(v1.BodyAge), // 0
+				VisceralFat:  int(v1.VisceralFatLevel),
 
-				BasalMetabolism:    v1.BasicMetabolism,
+				BasalMetabolism:    int(v1.BasicMetabolism),
 				SkeletalMuscleMass: v1.SkeletalMuscle, // 0
 
 				User:   name,
@@ -145,7 +155,7 @@ func (c *Client) loadingBodyDataParams(roleID string, bodyTime int64) url.Values
 	params.Set("userId", c.userID)
 	params.Set("roleId", roleID)
 	params.Set("version", "4.16.0")
-	params.Set("isMainRole", strconv.FormatBool(roleID == c.roleIDs[""]))
+	params.Set("isMainRole", strconv.FormatBool(len(c.roles) > 0 && roleID == c.roles[0].ID))
 	params.Set("device_mac", c.deviceID)
 	params.Set("mainRoleId", "0")
 	params.Set("bodyTime", strconv.FormatInt(bodyTime, 10))
@@ -156,6 +166,33 @@ func (c *Client) loadingBodyDataParams(roleID string, bodyTime int64) url.Values
 	params.Del("timezone")
 
 	return params
+}
+
+func (c *Client) selectRole(name string) (roleInfo, error) {
+	if len(c.roles) == 0 {
+		return roleInfo{}, errors.New("picooc: no roles found")
+	}
+
+	if name == "" {
+		return c.roles[0], nil
+	}
+
+	if roleID, ok := c.roleIDs[name]; ok {
+		return roleInfo{ID: roleID, Name: name}, nil
+	}
+
+	return roleInfo{}, fmt.Errorf("picooc: unknown rolename %q, available: %s", name, c.roleNames())
+}
+
+func (c *Client) roleNames() string {
+	names := make([]string, 0, len(c.roles))
+	for _, role := range c.roles {
+		if role.Name == "" {
+			continue
+		}
+		names = append(names, role.Name)
+	}
+	return strings.Join(names, ", ")
 }
 
 func (c *Client) GetMeasureList(startTime, endTime int64, page, size int) (json.RawMessage, error) {

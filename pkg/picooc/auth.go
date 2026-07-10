@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -152,8 +153,8 @@ type loginRole struct {
 	RoleInfos            []json.RawMessage `json:"role_infos"`
 	UpgradeStatus        int               `json:"upgrade_status"`
 	HeightUnit           any               `json:"heightUnit"`
-	AnchorWeight         int               `json:"anchor_weight"`
-	AnchorBata           int               `json:"anchor_bata"`
+	AnchorWeight         float32           `json:"anchor_weight"`
+	AnchorBata           float32           `json:"anchor_bata"`
 	VirtualRole          int               `json:"virtualRole"`
 	BabyWeightUnit       int               `json:"babyWeightUnit"`
 	RealBirthday         string            `json:"realBirthday"`
@@ -174,11 +175,11 @@ type loginBodyIndex struct {
 	BodyFat                  float32       `json:"body_fat"`
 	Weight                   float32       `json:"weight"`
 	BMI                      float32       `json:"bmi"`
-	VisceralFatLevel         int           `json:"visceral_fat_level"`
+	VisceralFatLevel         float32       `json:"visceral_fat_level"`
 	MuscleRace               float32       `json:"muscle_race"`
-	BodyAge                  int           `json:"body_age"`
+	BodyAge                  float32       `json:"body_age"`
 	BoneMass                 float32       `json:"bone_mass"`
-	BasicMetabolism          int           `json:"basic_metabolism"`
+	BasicMetabolism          float32       `json:"basic_metabolism"`
 	WaterRace                float32       `json:"water_race"`
 	SkeletalMuscle           float32       `json:"skeletal_muscle"`
 	LocalTime                int64         `json:"local_time"`
@@ -188,21 +189,21 @@ type loginBodyIndex struct {
 	IsDel                    int           `json:"is_del"`
 	Abnormal                 loginAbnormal `json:"abnormal"`
 	AbnormalFlag             int           `json:"abnormal_flag"`
-	ElectricResistance       int           `json:"electric_resistance"`
+	ElectricResistance       float32       `json:"electric_resistance"`
 	IsManuallyAdd            int           `json:"is_manually_add"`
 	IsFirstDay               int           `json:"is_first_day"`
 	LandmarkIcons            []string      `json:"landmarkIcons"`
 	LandmarkIconsV2          []string      `json:"landmarkIconsV2"`
 	MAC                      string        `json:"mac"`
-	AnchorWeight             int           `json:"anchor_weight"`
-	AnchorBata               int           `json:"anchor_bata"`
-	CorrectionValueR         int           `json:"correction_value_r"`
+	AnchorWeight             float32       `json:"anchor_weight"`
+	AnchorBata               float32       `json:"anchor_bata"`
+	CorrectionValueR         float32       `json:"correction_value_r"`
 	BodyFatReferenceValue    float32       `json:"body_fat_reference_value"`
 	LabelMarker              int           `json:"label_marker"`
 	DataSources              int           `json:"data_sources"`
 	ElectricResistanceFilter float32       `json:"electric_resistance_filter"`
 	BodyFatOriginal          float32       `json:"body_fat_original"`
-	Noise                    int           `json:"noise"`
+	Noise                    float32       `json:"noise"`
 	FatAlgorithmType         int           `json:"fat_algorithm_type"`
 	Cat                      int           `json:"cat"`
 	VerifiedMark             int           `json:"verifiedMark"`
@@ -210,10 +211,10 @@ type loginBodyIndex struct {
 }
 
 type loginAbnormal struct {
-	Weight       int   `json:"weight"`
-	Time         int64 `json:"time"`
-	AbnormalFlag int   `json:"abnormal_flag"`
-	BodyFat      int   `json:"body_fat"`
+	Weight       float32 `json:"weight"`
+	Time         int64   `json:"time"`
+	AbnormalFlag int     `json:"abnormal_flag"`
+	BodyFat      float32 `json:"body_fat"`
 }
 
 type loginUserDevice struct {
@@ -321,9 +322,20 @@ func (c *Client) Login(username, password string) error {
 	c.userID = firstNonEmpty(res1.Resp.UserID, res1.Resp.UID, res1.Data.UserID, res1.Data.UID, res1.UserID, res1.UID)
 	c.token = firstNonEmpty(res1.Resp.Token, res1.Resp.UserToken, res1.Data.Token, res1.Data.UserToken, res1.Token, res1.UserToken)
 
-	c.roleIDs = map[string]string{"": res1.Resp.RoleID}
+	c.roleIDs = map[string]string{}
+	c.roles = nil
 	for _, role := range res1.Resp.Roles {
+		if role.RoleID == "" {
+			continue
+		}
+		c.roles = append(c.roles, roleInfo{ID: role.RoleID, Name: role.RoleName})
 		c.roleIDs[role.RoleName] = role.RoleID
+		log.Printf("picooc: found roleid=%s rolename=%s\n", role.RoleID, role.RoleName)
+	}
+
+	if len(c.roles) == 0 && res1.Resp.RoleID != "" {
+		c.roles = append(c.roles, roleInfo{ID: res1.Resp.RoleID, Name: ""})
+		log.Printf("picooc: found roleid=%s rolename=%s\n", res1.Resp.RoleID, "")
 	}
 
 	return nil

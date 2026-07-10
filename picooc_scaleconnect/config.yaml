@@ -12,9 +12,13 @@ init: false
 stdin: true
 
 options:
+  db: true
+  db_path: ""
   sleep: 24h
 
 schema:
+  db: bool
+  db_path: "str"
   sleep: "str"
 
 map: [ "config:rw" ]
